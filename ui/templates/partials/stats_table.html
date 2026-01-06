@@ -1,0 +1,86 @@
+{% macro stats_table(results, show_actions=true) %}
+<div class="table-container">
+    <table class="data-table" id="stats-table">
+        <thead>
+            <tr>
+                <th class="sortable" data-sort="Org_Name">Organization</th>
+                <th class="sortable" data-sort="Repo_Name">Repository</th>
+                <th class="sortable" data-sort="Is_Empty">Empty</th>
+                <th class="sortable" data-sort="Last_Push">Last Push</th>
+                <th class="sortable" data-sort="isFork">Fork</th>
+                <th class="sortable" data-sort="isArchived">Archived</th>
+                <th class="sortable text-right" data-sort="Repo_Size(mb)">Size (MB)</th>
+                <th class="sortable text-right" data-sort="Record_Count">Records</th>
+                <th class="sortable text-right" data-sort="Collaborator_Count">Collaborators</th>
+                <th class="sortable text-right" data-sort="Issue_Count">Issues</th>
+                <th class="sortable text-right" data-sort="PR_Count">PRs</th>
+                <th class="sortable text-right" data-sort="Branch_Count">Branches</th>
+                <th class="sortable" data-sort="Migration_Issue">Migration Issue</th>
+                {% if show_actions %}
+                <th>Actions</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in results %}
+            <tr class="{% if row.Migration_Issue == 'TRUE' %}row-warning{% endif %}{% if row.Is_Empty %} row-muted{% endif %}">
+                <td>{{ row.Org_Name }}</td>
+                <td>
+                    <a href="{{ row.Full_URL }}" target="_blank" rel="noopener noreferrer">
+                        {{ row.Repo_Name }}
+                    </a>
+                </td>
+                <td class="text-center">
+                    {% if row.Is_Empty %}
+                    <span class="badge badge-warning">Yes</span>
+                    {% else %}
+                    <span class="badge badge-success">No</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.Last_Push %}
+                    {{ row.Last_Push[:10] }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if row.isFork %}✓{% else %}—{% endif %}
+                </td>
+                <td class="text-center">
+                    {% if row.isArchived %}
+                    <span class="badge badge-secondary">Yes</span>
+                    {% else %}
+                    —
+                    {% endif %}
+                </td>
+                <td class="text-right font-mono">{{ row['Repo_Size(mb)'] }}</td>
+                <td class="text-right font-mono">{{ row.Record_Count }}</td>
+                <td class="text-right font-mono">{{ row.Collaborator_Count }}</td>
+                <td class="text-right font-mono">{{ row.Issue_Count }}</td>
+                <td class="text-right font-mono">{{ row.PR_Count }}</td>
+                <td class="text-right font-mono">{{ row.Branch_Count }}</td>
+                <td class="text-center">
+                    {% if row.Migration_Issue == 'TRUE' %}
+                    <span class="badge badge-danger">Yes</span>
+                    {% else %}
+                    <span class="badge badge-success">No</span>
+                    {% endif %}
+                </td>
+                {% if show_actions %}
+                <td>
+                    <a href="{{ row.Full_URL }}" target="_blank" rel="noopener noreferrer" class="btn btn-icon btn-small" title="Open on GitHub">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                    </a>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %}

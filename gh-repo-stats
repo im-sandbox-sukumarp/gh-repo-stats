@@ -67,6 +67,12 @@ VERSION_MAJOR="0"
 VERSION_MINOR="0"
 REPO_PAGE_SIZE=10
 EXTRA_PAGE_SIZE=50
+UI_PORT=8765                                  # Default port for Web UI
+LAUNCH_UI=0                                   # Flag to launch Web UI
+UI_VENV_DIR="${HOME}/.gh-repo-stats-ui/venv"  # Virtual environment directory
+# Progress tracking for UI
+TOTAL_REPO_COUNT=0                            # Total number of repos to process
+PROCESSED_REPO_COUNT=0                        # Number of repos processed so far
 
 ################################################################################
 #### Function PrintUsage #######################################################
@@ -99,12 +105,19 @@ Options:
      -y, --token-type              : Type of Personal Access, can either be "user" or "app"
                                      Default: $GITHUB_TOKEN_TYPE
 
+Web UI Options:
+     -b, --browse-ui               : Launch the web UI in the default browser
+         --ui-port                 : Port for the web UI server
+                                     Default: $UI_PORT
+
 Description:
   Scans an organization or list of organizations for all repositories and gathers size statistics for each repository
 
 Example:
   gh repo-stats -o my-org-name
   gh repo-stats -o my-org-name -H github.example.com
+  gh repo-stats --browse-ui
+  gh repo-stats --browse-ui --ui-port 9000
 
 EOM
   exit 0
@@ -167,6 +180,14 @@ while (( "$#" )); do
       REPO_LIST_FILE=$2
       shift 2
       ;;
+    -b|--browse-ui)
+      LAUNCH_UI=1
+      shift
+      ;;
+    --ui-port)
+      UI_PORT=$2
+      shift 2
+      ;;
     --) # end argument parsing
       shift
       break
@@ -191,6 +212,96 @@ eval set -- "$PARAMS"
 ############################ FUNCTIONS #########################################
 ################################################################################
 ################################################################################
+################################################################################
+#### Function LaunchWebUI ######################################################
+LaunchWebUI() {
+  echo ""
+  echo "######################################################"
+  echo "############# Launching Web UI #######################"
+  echo "######################################################"
+  echo ""
+
+  # Get the directory where the script is located
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  UI_DIR="${SCRIPT_DIR}/ui"
+
+  # Check if UI directory exists
+  if [[ ! -d "${UI_DIR}" ]]; then
+    echo "ERROR: Web UI directory not found at ${UI_DIR}"
+    echo "Please ensure the ui/ directory is present in the gh-repo-stats installation."
+    exit 1
+  fi
+
+  # Check for Python 3.9+
+  PYTHON_CMD=""
+  for cmd in python3.12 python3.11 python3.10 python3.9 python3 python; do
+    if command -v "$cmd" &> /dev/null; then
+      PYTHON_VERSION=$("$cmd" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+      MAJOR_VERSION=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+      MINOR_VERSION=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+      if [[ "$MAJOR_VERSION" -ge 3 ]] && [[ "$MINOR_VERSION" -ge 9 ]]; then
+        PYTHON_CMD="$cmd"
+        break
+      fi
+    fi
+  done
+
+  if [[ -z "$PYTHON_CMD" ]]; then
+    echo "ERROR: Python 3.9 or higher is required for the Web UI"
+    echo "Please install Python 3.9+ and try again."
+    exit 1
+  fi
+
+  echo "Using Python: $PYTHON_CMD ($PYTHON_VERSION)"
+
+  # Create virtual environment directory if it doesn't exist
+  mkdir -p "$(dirname "${UI_VENV_DIR}")"
+
+  # Create virtual environment if it doesn't exist
+  if [[ ! -d "${UI_VENV_DIR}" ]]; then
+    echo "Creating virtual environment at ${UI_VENV_DIR}..."
+    "$PYTHON_CMD" -m venv "${UI_VENV_DIR}"
+  fi
+
+  # Activate virtual environment
+  # shellcheck source=/dev/null
+  source "${UI_VENV_DIR}/bin/activate"
+
+  # Check if dependencies are installed, install if not
+  if ! python -c "import starlette" &> /dev/null; then
+    echo "Installing dependencies..."
+    pip install --quiet --upgrade pip
+    pip install --quiet -r "${UI_DIR}/requirements.txt"
+  fi
+
+  # Set environment variables for the UI
+  export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH}"
+  
+  # Determine the URL
+  UI_URL="http://127.0.0.1:${UI_PORT}"
+  
+  echo ""
+  echo "Starting Web UI server on ${UI_URL}"
+  echo "Press Ctrl+C to stop the server"
+  echo ""
+
+  # Open browser after a short delay
+  (
+    sleep 2
+    # Open browser based on OS
+    case "$OSTYPE" in
+      darwin*)  open "${UI_URL}" ;;
+      linux*)   xdg-open "${UI_URL}" 2>/dev/null || sensible-browser "${UI_URL}" 2>/dev/null ;;
+      msys*|cygwin*)    start "${UI_URL}" ;;
+    esac
+  ) &
+
+  # Run the server
+  python -m uvicorn ui.app:app --host 127.0.0.1 --port "${UI_PORT}"
+
+  # Deactivate virtual environment on exit
+  deactivate 2>/dev/null || true
+}
 ################################################################################
 #### Function DebugJQ ##########################################################
 DebugJQ() {
@@ -530,10 +641,62 @@ isCompatibleGHESVersion() {
   fi
 }
 ################################################################################
+#### Function GetRepoCount #####################################################
+# Gets just the total count of repositories for an organization
+# Uses a minimal GraphQL query for efficiency
+GetRepoCount() {
+  local org_name="$1"
+  
+  QUERY="query(\$login: String!) {
+    organization(login: \$login) {
+      repositories {
+        totalCount
+      }
+    }
+  }"
+
+  Debug "Getting repo count for org: ${org_name}"
+  local DATA_BLOCK
+  DATA_BLOCK=$(gh api graphql -f query="$QUERY" -F login="$org_name" 2>/dev/null)
+  local ERROR_CODE=$?
+  
+  if [ "${ERROR_CODE}" -ne 0 ]; then
+    echo "0"
+    return
+  fi
+
+  local REPO_COUNT
+  REPO_COUNT=$(echo "${DATA_BLOCK}" | jq -r '.data.organization.repositories.totalCount // 0')
+  
+  if [[ -z "${REPO_COUNT}" ]] || [[ "${REPO_COUNT}" == "null" ]]; then
+    echo "0"
+  else
+    echo "${REPO_COUNT}"
+  fi
+}
+################################################################################
 #### Function GetOrgsFromFile ##################################################
 GetOrgsFromFile() {
   # shellcheck disable=SC2034
   # Unused variables left for readability
+  
+  # First pass: count total repos across all orgs
+  echo "------------------------------------------------------"
+  echo "Counting repositories across all organizations..."
+  TOTAL_REPO_COUNT=0
+  while IFS=, read -r login
+  do
+    local ORG_COUNT
+    ORG_COUNT=$(GetRepoCount "${login}")
+    ((TOTAL_REPO_COUNT += ORG_COUNT))
+    echo "  ${login}: ${ORG_COUNT} repositories"
+  done < "${INPUT_FILE_NAME}"
+  echo "------------------------------------------------------"
+  echo "Found ${TOTAL_REPO_COUNT} total repositories to process" >&2
+  echo "------------------------------------------------------"
+  
+  # Second pass: process the repos
+  PROCESSED_REPO_COUNT=0
   while IFS=, read -r login
   do
     ORG_NAME="${login}"
@@ -821,6 +984,14 @@ ParseRepos() {
       for REPO in "${REPO_LIST_ARRAY[@]}"; do
         if [[ "${REPO}" == "${CHECK_REPO_NAME}" ]]; then
           # Found a match, we can continue
+          # Increment progress counter
+          ((PROCESSED_REPO_COUNT++))
+          # Output progress info for UI tracking (to stderr for Python parsing)
+          if [[ ${TOTAL_REPO_COUNT} -gt 0 ]]; then
+            echo "Processing ${PROCESSED_REPO_COUNT}/${TOTAL_REPO_COUNT}: ${REPO_NAME}" >&2
+          else
+            echo "Analyzing Repo: ${REPO_NAME}" >&2
+          fi
           ParseRepoData "${REPO_DATA}"
         fi
       done
@@ -842,7 +1013,14 @@ ParseRepos() {
         # Found this in the csv already
         echo "Repo:[${OWNER}/${REPO_NAME}] has previously been analyzed, moving on..."
       elif [ ${ERROR_CODE} -ne 0 ] && [[ -z "${REPO_LIST_FILE}" ]]; then
-        echo "Analyzing Repo: ${REPO_NAME}"
+        # Increment progress counter
+        ((PROCESSED_REPO_COUNT++))
+        # Output progress info for UI tracking (to stderr for Python parsing)
+        if [[ ${TOTAL_REPO_COUNT} -gt 0 ]]; then
+          echo "Processing ${PROCESSED_REPO_COUNT}/${TOTAL_REPO_COUNT}: ${REPO_NAME}" >&2
+        else
+          echo "Analyzing Repo: ${REPO_NAME}" >&2
+        fi
         ParseRepoData "${REPO_DATA}"
       fi
     fi
@@ -1593,6 +1771,14 @@ ValidateInput() {
 ############################## MAIN ############################################
 ################################################################################
 
+############################
+# Check for Web UI launch  #
+############################
+if [[ ${LAUNCH_UI} -eq 1 ]]; then
+  LaunchWebUI
+  exit 0
+fi
+
 ##########
 # Header #
 ##########
@@ -1625,7 +1811,14 @@ if [[ -z ${INPUT_FILE_NAME} ]]; then
   # Get GitHub Data #
   ###################
   echo "------------------------------------------------------"
-  echo "Getting repositories for org: ${ORG_NAME}"
+  
+  #####################################
+  # Get total repo count for progress #
+  #####################################
+  TOTAL_REPO_COUNT=$(GetRepoCount "${ORG_NAME}")
+  echo "Found ${TOTAL_REPO_COUNT} repositories for org: ${ORG_NAME}" >&2
+  echo "------------------------------------------------------"
+  
   #############################################
   # Check the API limit remaining for GraphQL #
   #############################################

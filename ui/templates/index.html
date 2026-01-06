@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}gh-repo-stats - Analyze GitHub Repositories{% endblock %}
+
+{% block content %}
+<!-- System Status Dashboard -->
+<section class="status-dashboard">
+    <div class="status-grid">
+        <!-- Python -->
+        <div class="status-tile status-tile-ok">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 12l2 2 4-4"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">Python</span>
+                <span class="status-tile-value">{{ system_info.python_version }}</span>
+            </div>
+            <div class="status-tile-badge status-badge-ok">✓</div>
+        </div>
+        
+        <!-- Starlette -->
+        <div class="status-tile status-tile-ok">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">Starlette</span>
+                <span class="status-tile-value">v{{ system_info.starlette_version }}</span>
+            </div>
+            <div class="status-tile-badge status-badge-ok">✓</div>
+        </div>
+        
+        <!-- GitHub CLI -->
+        {% if system_info.gh_cli.installed %}
+        <div class="status-tile {% if system_info.gh_cli.update_available %}status-tile-warning{% else %}status-tile-ok{% endif %}">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">GitHub CLI</span>
+                <span class="status-tile-value">v{{ system_info.gh_cli.version }}{% if system_info.gh_cli.date %}<span class="status-tile-date">{{ system_info.gh_cli.date }}</span>{% endif %}</span>
+            </div>
+            {% if system_info.gh_cli.update_available %}
+            <div class="status-tile-badge status-badge-warning">↑ {{ system_info.gh_cli.latest_version }}</div>
+            {% else %}
+            <div class="status-tile-badge status-badge-ok">✓</div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="status-tile status-tile-error">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">GitHub CLI</span>
+                <a href="https://cli.github.com/" target="_blank" rel="noopener" class="status-tile-link">Install →</a>
+            </div>
+            <div class="status-tile-badge status-badge-error">✗</div>
+        </div>
+        {% endif %}
+        
+        <!-- jq -->
+        {% if system_info.jq.installed %}
+        <div class="status-tile status-tile-ok">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">jq</span>
+                <span class="status-tile-value">v{{ system_info.jq.version }}</span>
+            </div>
+            <div class="status-tile-badge status-badge-ok">✓</div>
+        </div>
+        {% else %}
+        <div class="status-tile status-tile-error">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">jq</span>
+                <a href="https://jqlang.github.io/jq/download/" target="_blank" rel="noopener" class="status-tile-link">Install →</a>
+            </div>
+            <div class="status-tile-badge status-badge-error">✗</div>
+        </div>
+        {% endif %}
+        
+        <!-- gh-repo-stats Extension -->
+        {% if system_info.gh_repo_stats.installed %}
+        <div class="status-tile status-tile-ok">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18 17V9"/>
+                    <path d="M13 17V5"/>
+                    <path d="M8 17v-3"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">gh-repo-stats</span>
+                <span class="status-tile-value">{% if system_info.gh_repo_stats.version != 'installed' %}v{{ system_info.gh_repo_stats.version }}{% else %}Ready{% endif %}</span>
+            </div>
+            <div class="status-tile-badge status-badge-ok">✓</div>
+        </div>
+        {% else %}
+        <div class="status-tile status-tile-warning">
+            <div class="status-tile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18 17V9"/>
+                    <path d="M13 17V5"/>
+                    <path d="M8 17v-3"/>
+                </svg>
+            </div>
+            <div class="status-tile-content">
+                <span class="status-tile-label">gh-repo-stats</span>
+                <span class="status-tile-value">Extension</span>
+            </div>
+            <div class="status-tile-badge status-badge-warning">CLI</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<div class="hero">
+    <h1 class="hero-title">
+        <svg class="hero-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Analyze GitHub Repository Statistics
+    </h1>
+    <p class="hero-description">
+        Scan your GitHub organizations to gather detailed repository statistics, 
+        identify migration issues, and understand your codebase at scale.
+    </p>
+</div>
+
+<form id="analysis-form" class="card form-card" method="POST" action="/api/analyze" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    
+    <!-- Organization Input Section -->
+    <section class="form-section">
+        <h2 class="section-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Organizations
+        </h2>
+        
+        <div class="form-group">
+            <label for="organizations" class="form-label">
+                Organization Name(s)
+                <span class="form-hint">Enter one or more organization names, separated by commas or newlines</span>
+            </label>
+            <textarea 
+                id="organizations" 
+                name="organizations" 
+                class="form-input form-textarea"
+                placeholder="my-organization&#10;another-org"
+                rows="3"
+                aria-describedby="org-help"
+            ></textarea>
+            <small id="org-help" class="form-help">
+                You can also upload a file with organization names below
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label for="org-file" class="form-label">
+                Or Upload File
+                <span class="form-hint">Text file with organization names, one per line</span>
+            </label>
+            <div class="file-input-wrapper">
+                <input 
+                    type="file" 
+                    id="org-file" 
+                    name="org_file" 
+                    class="form-input file-input"
+                    accept=".txt,.csv"
+                >
+                <div class="file-input-display">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span class="file-input-text">Choose a file or drag it here</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Repository Filter Section -->
+    <section class="form-section">
+        <h2 class="section-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            Repository Filter
+            <span class="badge badge-optional">Optional</span>
+        </h2>
+        
+        <div class="form-group">
+            <label for="repo-list" class="form-label">
+                Specific Repositories
+                <span class="form-hint">Leave empty to analyze all repositories in the organization(s)</span>
+            </label>
+            <textarea 
+                id="repo-list" 
+                name="repo_list" 
+                class="form-input form-textarea"
+                placeholder="repo-name-1&#10;repo-name-2"
+                rows="2"
+            ></textarea>
+        </div>
+    </section>
+    
+    <!-- Configuration Section -->
+    <section class="form-section">
+        <h2 class="section-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            Configuration
+        </h2>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="hostname" class="form-label">
+                    GitHub Hostname
+                </label>
+                <input 
+                    type="text" 
+                    id="hostname" 
+                    name="hostname" 
+                    class="form-input"
+                    value="github.com"
+                    placeholder="github.com"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="token-type" class="form-label">
+                    Token Type
+                </label>
+                <select id="token-type" name="token_type" class="form-input form-select">
+                    <option value="user" selected>User PAT</option>
+                    <option value="app">GitHub App</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="repo-page-size" class="form-label">
+                    Repo Page Size
+                    <span class="form-hint">Reduce if timeouts occur</span>
+                </label>
+                <input 
+                    type="number" 
+                    id="repo-page-size" 
+                    name="repo_page_size" 
+                    class="form-input"
+                    value="10"
+                    min="1"
+                    max="100"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="extra-page-size" class="form-label">
+                    Extra Page Size
+                    <span class="form-hint">For paginated queries</span>
+                </label>
+                <input 
+                    type="number" 
+                    id="extra-page-size" 
+                    name="extra_page_size" 
+                    class="form-input"
+                    value="50"
+                    min="1"
+                    max="100"
+                >
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="token" class="form-label">
+                GitHub Token
+                <span class="form-hint">Optional - Uses <code>gh auth token</code> if not provided</span>
+            </label>
+            <div class="input-with-action">
+                <input 
+                    type="password" 
+                    id="token" 
+                    name="token" 
+                    class="form-input"
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    autocomplete="off"
+                >
+                <button type="button" class="btn btn-secondary btn-icon" id="toggle-token" aria-label="Toggle token visibility">
+                    <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <svg class="icon-eye-off hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                </button>
+                <button type="button" class="btn btn-secondary" id="validate-token">
+                    Validate
+                </button>
+            </div>
+            <div id="token-status" class="token-status"></div>
+        </div>
+        
+        <div class="form-group">
+            <fieldset class="checkbox-group">
+                <legend class="form-label">Analysis Options</legend>
+                
+                <label class="checkbox-label">
+                    <input type="checkbox" name="analyze_repo_conflicts" value="true">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">
+                        <strong>Analyze Repository Conflicts</strong>
+                        <small>Check for naming conflicts across organizations</small>
+                    </span>
+                </label>
+                
+                <label class="checkbox-label">
+                    <input type="checkbox" name="analyze_team_conflicts" value="true">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">
+                        <strong>Analyze Team Conflicts</strong>
+                        <small>Check for team naming conflicts across organizations</small>
+                    </span>
+                </label>
+            </fieldset>
+        </div>
+    </section>
+    
+    <!-- Submit Section -->
+    <section class="form-actions">
+        <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+            <svg class="btn-icon-left" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span class="btn-text">Run Analysis</span>
+            <span class="btn-loading hidden">
+                <svg class="spinner" viewBox="0 0 24 24" width="20" height="20">
+                    <circle class="spinner-track" cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" opacity="0.25"/>
+                    <circle class="spinner-head" cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="31.4" stroke-dashoffset="10"/>
+                </svg>
+                Analyzing...
+            </span>
+        </button>
+        
+        <a href="/results?sample=true" class="btn btn-secondary">
+            <svg class="btn-icon-left" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+            View Sample Data
+        </a>
+    </section>
+</form>
+
+<!-- Recent Tasks Section -->
+<section class="recent-tasks-section" id="recent-tasks-section">
+    <h2 class="section-header">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Recent Tasks
+        <button type="button" class="btn btn-sm btn-icon refresh-btn" id="refresh-tasks" title="Refresh">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+        </button>
+    </h2>
+    
+    <div class="recent-tasks-list" id="recent-tasks-list">
+        <div class="tasks-empty" id="tasks-empty">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+            <p>No recent tasks</p>
+            <small>Start an analysis to see tasks here</small>
+        </div>
+        
+        <!-- Tasks will be dynamically inserted here -->
+    </div>
+</section>
+{% endblock %}

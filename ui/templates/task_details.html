@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Task Details - {{ job.config.organizations | join(', ') }}{% endblock %}
+
+{% block content %}
+<div class="task-details-page">
+    <!-- Header -->
+    <header class="task-details-header">
+        <a href="/" class="back-link">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Back to Home
+        </a>
+        
+        <div class="task-details-title-row">
+            <div class="task-status-badge task-status-{{ job.status.value }}" id="status-badge">
+                <span class="status-icon">
+                    {% if job.status.value == 'running' %}
+                    <svg class="spinner-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                    {% elif job.status.value == 'completed' %}
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    {% elif job.status.value == 'failed' %}
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    {% else %}
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    {% endif %}
+                </span>
+                <span class="status-text" id="status-text">{{ job.status.value | upper }}</span>
+            </div>
+            
+            <h1 class="task-details-title">{{ job.config.organizations | join(', ') }}</h1>
+        </div>
+    </header>
+    
+    <!-- Task Info Cards -->
+    <section class="task-info-grid">
+        <div class="info-card">
+            <div class="info-card-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div class="info-card-content">
+                <span class="info-card-label">Started</span>
+                <span class="info-card-value" id="started-at">{{ job.started_at.strftime('%Y-%m-%d %H:%M:%S') if job.started_at else 'Not started' }}</span>
+            </div>
+        </div>
+        
+        <div class="info-card">
+            <div class="info-card-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <div class="info-card-content">
+                <span class="info-card-label">Completed</span>
+                <span class="info-card-value" id="completed-at">{{ job.completed_at.strftime('%Y-%m-%d %H:%M:%S') if job.completed_at else 'In progress...' }}</span>
+            </div>
+        </div>
+        
+        <div class="info-card">
+            <div class="info-card-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+            </div>
+            <div class="info-card-content">
+                <span class="info-card-label">Repositories</span>
+                <span class="info-card-value" id="repo-count">
+                    <span id="processed-repos">{{ job.processed_repos }}</span> / <span id="total-repos">{{ job.total_repos or '?' }}</span>
+                </span>
+            </div>
+        </div>
+        
+        <div class="info-card">
+            <div class="info-card-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="20" x2="12" y2="10"/>
+                    <line x1="18" y1="20" x2="18" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="16"/>
+                </svg>
+            </div>
+            <div class="info-card-content">
+                <span class="info-card-label">Progress</span>
+                <span class="info-card-value" id="progress-percent">{{ job.progress }}%</span>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Progress Bar -->
+    <section class="task-progress-section">
+        <div class="task-progress-header">
+            <span class="task-progress-label" id="progress-message">{{ job.message }}</span>
+        </div>
+        <div class="task-progress-bar-large">
+            <div class="task-progress-fill-large" id="progress-fill" style="width: {{ job.progress }}%"></div>
+        </div>
+        {% if job.current_repo %}
+        <div class="current-repo-indicator" id="current-repo-container">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Currently analyzing: </span>
+            <code id="current-repo">{{ job.current_repo }}</code>
+        </div>
+        {% else %}
+        <div class="current-repo-indicator" id="current-repo-container" style="display: none;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Currently analyzing: </span>
+            <code id="current-repo"></code>
+        </div>
+        {% endif %}
+    </section>
+    
+    <!-- Action Buttons -->
+    <section class="task-actions">
+        {% if job.status.value == 'running' %}
+        <button type="button" class="btn btn-danger" id="stop-btn" onclick="cancelJob('{{ job_id }}')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            Stop Analysis
+        </button>
+        {% endif %}
+        {% if job.status.value == 'completed' %}
+        <a href="/results?job_id={{ job_id }}" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View Results
+        </a>
+        <a href="/api/download/{{ job_id }}" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download CSV
+        </a>
+        {% endif %}
+    </section>
+    
+    <!-- Script Output Section -->
+    <section class="script-output-section">
+        <div class="output-header">
+            <h2>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="4 17 10 11 4 5"/>
+                    <line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+                Script Output
+            </h2>
+            <div class="output-controls">
+                <label class="auto-scroll-toggle">
+                    <input type="checkbox" id="auto-scroll" checked>
+                    <span>Auto-scroll</span>
+                </label>
+                <button type="button" class="btn btn-sm btn-secondary" id="clear-output">
+                    Clear
+                </button>
+            </div>
+        </div>
+        <div class="output-terminal" id="output-terminal">
+            <div class="output-lines" id="output-lines">
+                {% for line in job.output_lines %}
+                <div class="output-line">{{ line }}</div>
+                {% endfor %}
+                {% if not job.output_lines %}
+                <div class="output-placeholder">Waiting for output...</div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    
+    <!-- Errors Section (if any) -->
+    {% if job.errors %}
+    <section class="errors-section">
+        <h2>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Errors
+        </h2>
+        <div class="error-list">
+            {% for error in job.errors %}
+            <div class="error-item">{{ error }}</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+
+<script>
+    const jobId = '{{ job_id }}';
+    let lastOutputLength = {{ job.output_lines | length }};
+    let pollInterval = null;
+    
+    async function cancelJob(jobId) {
+        const btn = document.getElementById('stop-btn');
+        if (!btn) return;
+        
+        // Confirm cancellation
+        if (!confirm('Are you sure you want to stop this analysis?')) {
+            return;
+        }
+        
+        // Disable button and show loading state
+        btn.disabled = true;
+        btn.innerHTML = `
+            <svg class="spinner-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            Stopping...
+        `;
+        
+        try {
+            const response = await fetch(`/api/cancel/${jobId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update the UI
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Stopped
+                `;
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-secondary');
+                
+                // Add message to output
+                const outputLines = document.getElementById('output-lines');
+                const cancelMsg = document.createElement('div');
+                cancelMsg.className = 'output-line output-line-warning';
+                cancelMsg.textContent = '>>> Cancellation requested - stopping analysis <<<';
+                outputLines.appendChild(cancelMsg);
+                
+                // Scroll to bottom
+                if (document.getElementById('auto-scroll').checked) {
+                    const terminal = document.getElementById('output-terminal');
+                    terminal.scrollTop = terminal.scrollHeight;
+                }
+            } else {
+                alert('Failed to cancel: ' + (data.error || 'Unknown error'));
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="6" y="6" width="12" height="12" rx="2"/>
+                    </svg>
+                    Stop Analysis
+                `;
+            }
+        } catch (error) {
+            console.error('Cancel error:', error);
+            alert('Error cancelling job: ' + error.message);
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="6" width="12" height="12" rx="2"/>
+                </svg>
+                Stop Analysis
+            `;
+        }
+    }
+    
+    function updateStatus() {
+        fetch(`/api/status/${jobId}?output=true`)
+            .then(res => res.json())
+            .then(data => {
+                // Update status badge
+                const badge = document.getElementById('status-badge');
+                badge.className = `task-status-badge task-status-${data.status}`;
+                document.getElementById('status-text').textContent = data.status.toUpperCase();
+                
+                // Update progress
+                document.getElementById('progress-percent').textContent = `${data.progress}%`;
+                document.getElementById('progress-fill').style.width = `${data.progress}%`;
+                document.getElementById('progress-message').textContent = data.message;
+                
+                // Update repo counts
+                document.getElementById('processed-repos').textContent = data.processed_repos || 0;
+                document.getElementById('total-repos').textContent = data.total_repos || '?';
+                
+                // Update current repo
+                const currentRepoContainer = document.getElementById('current-repo-container');
+                const currentRepoEl = document.getElementById('current-repo');
+                if (data.current_repo) {
+                    currentRepoContainer.style.display = 'flex';
+                    currentRepoEl.textContent = data.current_repo;
+                } else {
+                    currentRepoContainer.style.display = 'none';
+                }
+                
+                // Update completed time
+                if (data.completed_at) {
+                    document.getElementById('completed-at').textContent = new Date(data.completed_at).toLocaleString();
+                }
+                
+                // Update output lines
+                if (data.output_lines && data.output_lines.length > 0) {
+                    const outputLines = document.getElementById('output-lines');
+                    const placeholder = outputLines.querySelector('.output-placeholder');
+                    if (placeholder) placeholder.remove();
+                    
+                    // Add new lines
+                    if (data.output_lines.length > lastOutputLength) {
+                        const newLines = data.output_lines.slice(lastOutputLength);
+                        newLines.forEach(line => {
+                            const div = document.createElement('div');
+                            div.className = 'output-line';
+                            div.textContent = line;
+                            outputLines.appendChild(div);
+                        });
+                        lastOutputLength = data.output_lines.length;
+                        
+                        // Auto-scroll
+                        if (document.getElementById('auto-scroll').checked) {
+                            const terminal = document.getElementById('output-terminal');
+                            terminal.scrollTop = terminal.scrollHeight;
+                        }
+                    }
+                }
+                
+                // Stop polling if job is done
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                    
+                    // Hide stop button
+                    const stopBtn = document.getElementById('stop-btn');
+                    if (stopBtn) {
+                        stopBtn.style.display = 'none';
+                    }
+                    
+                    // Show action buttons dynamically instead of reloading
+                    const actionsSection = document.querySelector('.task-actions');
+                    if (actionsSection && data.status === 'completed') {
+                        // Check if buttons already exist
+                        if (!actionsSection.querySelector('.btn-primary')) {
+                            actionsSection.innerHTML = `
+                                <a href="/results?job_id=${jobId}" class="btn btn-primary">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                    View Results
+                                </a>
+                                <a href="/api/download/${jobId}" class="btn btn-secondary">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    Download CSV
+                                </a>
+                            `;
+                        }
+                    }
+                }
+            })
+            .catch(err => console.error('Error fetching status:', err));
+    }
+    
+    // Clear output button
+    document.getElementById('clear-output')?.addEventListener('click', () => {
+        const outputLines = document.getElementById('output-lines');
+        outputLines.innerHTML = '<div class="output-placeholder">Output cleared</div>';
+        lastOutputLength = 0;
+    });
+    
+    // Start polling if job is still running
+    {% if job.status.value in ['pending', 'running'] %}
+    pollInterval = setInterval(updateStatus, 2000);
+    // Initial update
+    setTimeout(updateStatus, 500);
+    {% endif %}
+</script>
+{% endblock %}

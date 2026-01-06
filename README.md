@@ -114,3 +114,66 @@ tinyfists,publish-packages-to-repo-demo,false,2022-12-09T03:43:31Z,2021-10-11T19
   - 60,000 or more number of objects being imported
   - 1.5 GB or larger size on disk
 - `Created`: Date/time when the repository was created
+
+## Web UI
+
+`gh repo-stats` includes a modern web-based user interface for analyzing GitHub organization repositories through your browser.
+
+### Launching the Web UI
+
+```shell
+# Launch the Web UI with default settings (port 8765)
+gh repo-stats --browse-ui
+
+# Launch on a custom port
+gh repo-stats --browse-ui --ui-port 9000
+```
+
+The Web UI will automatically:
+1. Check for Python 3.9+ installation
+2. Create a virtual environment at `~/.gh-repo-stats-ui/venv/`
+3. Install required dependencies
+4. Start the web server
+5. Open your default browser to the UI
+
+### Web UI Features
+
+- **Organization Analysis**: Analyze single or multiple organizations
+- **File Upload**: Upload a text file with organization names (one per line)
+- **Repository Filtering**: Optionally filter to specific repositories
+- **Configuration Options**:
+  - Custom GitHub hostname (for GHES)
+  - Adjustable page sizes for API queries
+  - Token type selection (User PAT or GitHub App)
+  - Conflict analysis options
+
+### Results Dashboard
+
+The results page provides:
+
+- **Summary Statistics**: Total repos, size, migration issues, and more
+- **Interactive Data Table**:
+  - Sortable columns
+  - Search/filter functionality
+  - Visual indicators for migration issues, empty repos, and archived repos
+- **Export Options**:
+  - Download as CSV
+  - Copy to clipboard
+
+### Dark Mode Support
+
+The Web UI supports both light and dark themes, automatically respecting your system preference with a manual toggle available.
+
+### Requirements
+
+- Python 3.9 or higher
+- Internet connection (for initial dependency installation)
+
+### Environment Variables
+
+The Web UI respects the same environment variables as the CLI:
+
+- `GH_TOKEN`: GitHub authentication token
+- `GH_HOST`: GitHub hostname
+- `GH_DEBUG`: Enable debug mode
+
