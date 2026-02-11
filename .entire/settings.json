@@ -1,4 +1,4 @@
 {
-  "strategy": "manual-commit",
+  "strategy": "auto-commit",
   "enabled": true
 }
