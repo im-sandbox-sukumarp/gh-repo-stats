@@ -1,0 +1,14 @@
+{
+	"inputs": [],
+	"servers": {
+		"demo-mcp": {
+			"command": "uv",
+			"args": [
+				"run",
+				"main.py"
+			],
+			"cwd": "/Users/sukumarp/VSCode-Projects/demo-mcp",
+			"type": "stdio"
+		}
+	}
+}

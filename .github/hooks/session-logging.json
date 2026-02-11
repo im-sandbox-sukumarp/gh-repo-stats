@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Session started\" >> logs/session.log",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Session ended\" >> logs/session.log",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}

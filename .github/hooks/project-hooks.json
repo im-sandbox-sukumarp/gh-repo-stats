@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "echo \"Session started: $(date)\" >> logs/session.log",
+        "powershell": "Add-Content -Path logs/session.log -Value \"Session started: $(Get-Date)\"",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "./scripts/log-prompt.sh",
+        "powershell": "./scripts/log-prompt.ps1",
+        "cwd": "scripts",
+        "env": {
+          "LOG_LEVEL": "INFO"
+        }
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "./scripts/security-check.sh",
+        "powershell": "./scripts/security-check.ps1",
+        "cwd": "scripts",
+        "timeoutSec": 15
+      },
+      {
+        "type": "command",
+        "bash": "./scripts/log-tool-use.sh",
+        "powershell": "./scripts/log-tool-use.ps1",
+        "cwd": "scripts"
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "cat >> logs/tool-results.jsonl",
+        "powershell": "$input | Add-Content -Path logs/tool-results.jsonl"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "./scripts/cleanup.sh",
+        "powershell": "./scripts/cleanup.ps1",
+        "cwd": "scripts",
+        "timeoutSec": 60
+      }
+    ]
+  }
+}
