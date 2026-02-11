@@ -48,6 +48,15 @@ test_script_shebang() {
   fi
 }
 
+# Test: --help flag exits with 0
+test_help_flag_exits_zero() {
+  if "$ROOT_DIR/gh-repo-stats" --help &> /dev/null; then
+    pass "--help flag exits with 0"
+  else
+    fail "--help flag exits with 0"
+  fi
+}
+
 # Run all tests
 main() {
   echo "Running gh-repo-stats tests..."
@@ -56,6 +65,7 @@ main() {
   test_script_exists
   test_script_executable
   test_script_shebang
+  test_help_flag_exits_zero
 
   echo ""
   echo "Results: $TESTS_PASSED passed, $TESTS_FAILED failed"
