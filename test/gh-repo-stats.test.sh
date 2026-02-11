@@ -57,6 +57,15 @@ test_help_flag_exits_zero() {
   fi
 }
 
+# Test: Fetch stats for a repository
+test_fetch_stats_for_repo() {
+    if "$ROOT_DIR/gh-repo-stats" -u "https://github.com/stedolan/jq" | grep -q "Statistics for"; then
+        pass "Fetch stats for a repository"
+    else
+        fail "Fetch stats for a repository"
+    fi
+}
+
 # Run all tests
 main() {
   echo "Running gh-repo-stats tests..."
@@ -66,6 +75,7 @@ main() {
   test_script_executable
   test_script_shebang
   test_help_flag_exits_zero
+  test_fetch_stats_for_repo
 
   echo ""
   echo "Results: $TESTS_PASSED passed, $TESTS_FAILED failed"

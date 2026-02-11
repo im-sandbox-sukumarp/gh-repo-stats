@@ -1,6 +1,7 @@
 # Get Repository Statistics
 
 Test
+A new line added for testing.
 
 `gh repo-stats` scans an organization or list of organizations for all repositories and gathers size statistics, key to understanding how long a migration of the data from one instance of **GitHub** to another will take.
 
@@ -178,4 +179,3 @@ The Web UI respects the same environment variables as the CLI:
 - `GH_TOKEN`: GitHub authentication token
 - `GH_HOST`: GitHub hostname
 - `GH_DEBUG`: Enable debug mode
-

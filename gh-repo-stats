@@ -102,6 +102,7 @@ Options:
                                      Default: token for hostname via gh auth token
      -T, --analyze-team-conflicts  : Gathers each org's teams and checks against other orgs to generate a list of
                                      potential naming conflicts if those orgs are to be merged during migration
+     -u, --url                     : The URL of the repository to analyze
      -y, --token-type              : Type of Personal Access, can either be "user" or "app"
                                      Default: $GITHUB_TOKEN_TYPE
 
@@ -118,6 +119,7 @@ Example:
   gh repo-stats -o my-org-name -H github.example.com
   gh repo-stats --browse-ui
   gh repo-stats --browse-ui --ui-port 9000
+  gh repo-stats -u https://github.com/stedolan/jq
 
 EOM
   exit 0
@@ -159,6 +161,10 @@ while (( "$#" )); do
     -T|--analyze-team-conflicts)
       ANALYZE_TEAMS=1
       shift
+      ;;
+    -u|--url)
+      REPO_URL=$2
+      shift 2
       ;;
     -p|--repo-page-size)
       REPO_PAGE_SIZE=$2
@@ -1760,12 +1766,60 @@ ValidateInput() {
   if [[ -n "${REPO_LIST_FILE}" ]]; then
     echo "User provided a repo list file. Mapping contents..."
     # Put the contents of the file into an array seperated by newlines
-    IFS=$'\n' read -d '' -r -a REPO_LIST_ARRAY < "${REPO_LIST_FILE}"
-    # Make all contents of the array lowercase
-    for i in "${!REPO_LIST_ARRAY[@]}"; do
-      REPO_LIST_ARRAY[$i]=$(echo "${REPO_LIST_ARRAY[$i]}" | tr '[:upper:]' '[:lower:]')
-    done
+    IFS=
+################################################################################
+#### Function GetRepoStatsForURL ###############################################
+GetRepoStatsForURL() {
+  local repo_url=$1
+  local repo_path
+  repo_path=$(echo "${repo_url}" | sed -E 's/https?:\/\/[^\/]+\///')
+  local repo_data
+  repo_data=$(gh api "repos/${repo_path}")
+  local error_code=$?
+
+  if [ "${error_code}" -ne 0 ]; then
+    echo "Error getting repository information for ${repo_url}"
+    echo "${repo_data}"
+    exit 1
   fi
+
+  PrintRepoStats "${repo_data}"
+}
+################################################################################
+#### Function PrintRepoStats ###################################################
+PrintRepoStats() {
+  local repo_data=$1
+  local repo_name
+  repo_name=$(echo "${repo_data}" | jq -r '.full_name')
+  local repo_size
+  repo_size=$(echo "${repo_data}" | jq -r '.size')
+  local forks
+  forks=$(echo "${repo_data}" | jq -r '.forks_count')
+  local stars
+  stars=$(echo "${repo_data}" | jq -r '.stargazers_count')
+  local watchers
+  watchers=$(echo "${repo_data}" | jq -r '.watchers_count')
+  local open_issues
+  open_issues=$(echo "${repo_data}" | jq -r '.open_issues_count')
+  local language
+  language=$(echo "${repo_data}" | jq -r '.language')
+  local created_at
+  created_at=$(echo "${repo_data}" | jq -r '.created_at')
+  local updated_at
+  updated_at=$(echo "${repo_data}" | jq -r '.updated_at')
+  local pushed_at
+  pushed_at=$(echo "${repo_data}" | jq -r '.pushed_at')
+
+  echo "Statistics for ${repo_name}:"
+  echo "  Size: ${repo_size} KB"
+  echo "  Forks: ${forks}"
+  echo "  Stars: ${stars}"
+  echo "  Watchers: ${watchers}"
+  echo "  Open Issues: ${open_issues}"
+  echo "  Language: ${language}"
+  echo "  Created At: ${created_at}"
+  echo "  Updated At: ${updated_at}"
+  echo "  Pushed At: ${pushed_at}"
 }
 ################################################################################
 ############################## MAIN ############################################
@@ -1776,6 +1830,437 @@ ValidateInput() {
 ############################
 if [[ ${LAUNCH_UI} -eq 1 ]]; then
   LaunchWebUI
+  exit 0
+fi
+
+if [[ -n "${REPO_URL}" ]]; then
+  GetRepoStatsForURL "${REPO_URL}"
+  exit 0
+fi
+
+##########
+# Header #
+##########
+Header
+
+#########################
+# Validate JQ installed #
+#########################
+ValidateJQ
+
+#################
+# Generate File #
+#################
+GenerateFiles
+
+######################
+# Validate the input #
+######################
+ValidateInput
+
+########################
+# Check the input file #
+########################
+if [[ -z ${INPUT_FILE_NAME} ]]; then
+  ######################
+  # Check Admin Rights #
+  ######################
+  CheckAdminRights "${ORG_NAME}"
+  ###################
+  # Get GitHub Data #
+  ###################
+  echo "------------------------------------------------------"
+  
+  #####################################
+  # Get total repo count for progress #
+  #####################################
+  TOTAL_REPO_COUNT=$(GetRepoCount "${ORG_NAME}")
+  echo "Found ${TOTAL_REPO_COUNT} repositories for org: ${ORG_NAME}" >&2
+  echo "------------------------------------------------------"
+  
+  #############################################
+  # Check the API limit remaining for GraphQL #
+  #############################################
+  CheckAPILimit
+  #############
+  # Get Repos #
+  #############
+  GetRepos
+else
+  ############
+  # Get Orgs #
+  ############
+  GetOrgsFromFile
+fi
+
+########################
+# Report all conflicts #
+########################
+ReportConflicts
+
+##########
+# Footer #
+##########
+Footer
+\n' read -d '' -r -a REPO_LIST_ARRAY < "${REPO_LIST_FILE}"
+    # Make all contents of the array lowercase
+    for i in "${!REPO_LIST_ARRAY[@]}"; do
+      REPO_LIST_ARRAY[$i]=$(echo "${REPO_LIST_ARRAY[$i]}" | tr '[:upper:]' '[:lower:]')
+    done
+  fi
+}
+################################################################################
+#### Function GetRepoStatsForURL ###############################################
+GetRepoStatsForURL() {
+  local repo_url=$1
+  local repo_path
+  repo_path=$(echo "${repo_url}" | sed -E 's/https?:\/\/[^\/]+\///')
+  local repo_data
+  repo_data=$(gh api "repos/${repo_path}")
+  local error_code=$?
+
+  if [ "${error_code}" -ne 0 ]; then
+    echo "Error getting repository information for ${repo_url}"
+    echo "${repo_data}"
+    exit 1
+  fi
+
+  PrintRepoStats "${repo_data}"
+}
+################################################################################
+#### Function PrintRepoStats ###################################################
+PrintRepoStats() {
+  local repo_data=$1
+  local repo_name
+  repo_name=$(echo "${repo_data}" | jq -r '.full_name')
+  local repo_size
+  repo_size=$(echo "${repo_data}" | jq -r '.size')
+  local forks
+  forks=$(echo "${repo_data}" | jq -r '.forks_count')
+  local stars
+  stars=$(echo "${repo_data}" | jq -r '.stargazers_count')
+  local watchers
+  watchers=$(echo "${repo_data}" | jq -r '.watchers_count')
+  local open_issues
+  open_issues=$(echo "${repo_data}" | jq -r '.open_issues_count')
+  local language
+  language=$(echo "${repo_data}" | jq -r '.language')
+  local created_at
+  created_at=$(echo "${repo_data}" | jq -r '.created_at')
+  local updated_at
+  updated_at=$(echo "${repo_data}" | jq -r '.updated_at')
+  local pushed_at
+  pushed_at=$(echo "${repo_data}" | jq -r '.pushed_at')
+
+  echo "Statistics for ${repo_name}:"
+  echo "  Size: ${repo_size} KB"
+  echo "  Forks: ${forks}"
+  echo "  Stars: ${stars}"
+  echo "  Watchers: ${watchers}"
+  echo "  Open Issues: ${open_issues}"
+  echo "  Language: ${language}"
+  echo "  Created At: ${created_at}"
+  echo "  Updated At: ${updated_at}"
+  echo "  Pushed At: ${pushed_at}"
+}
+################################################################################
+############################## MAIN ############################################
+################################################################################
+
+############################
+# Check for Web UI launch  #
+############################
+if [[ ${LAUNCH_UI} -eq 1 ]]; then
+  LaunchWebUI
+  exit 0
+fi
+
+if [[ -n "${REPO_URL}" ]]; then
+  GetRepoStatsForURL "${REPO_URL}"
+  exit 0
+fi
+
+##########
+# Header #
+##########
+Header
+
+#########################
+# Validate JQ installed #
+#########################
+ValidateJQ
+
+#################
+# Generate File #
+#################
+GenerateFiles
+
+######################
+# Validate the input #
+######################
+ValidateInput
+
+########################
+# Check the input file #
+########################
+if [[ -z ${INPUT_FILE_NAME} ]]; then
+  ######################
+  # Check Admin Rights #
+  ######################
+  CheckAdminRights "${ORG_NAME}"
+  ###################
+  # Get GitHub Data #
+  ###################
+  echo "------------------------------------------------------"
+  
+  #####################################
+  # Get total repo count for progress #
+  #####################################
+  TOTAL_REPO_COUNT=$(GetRepoCount "${ORG_NAME}")
+  echo "Found ${TOTAL_REPO_COUNT} repositories for org: ${ORG_NAME}" >&2
+  echo "------------------------------------------------------"
+  
+  #############################################
+  # Check the API limit remaining for GraphQL #
+  #############################################
+  CheckAPILimit
+  #############
+  # Get Repos #
+  #############
+  GetRepos
+else
+  ############
+  # Get Orgs #
+  ############
+  GetOrgsFromFile
+fi
+
+########################
+# Report all conflicts #
+########################
+ReportConflicts
+
+##########
+# Footer #
+##########
+Footer
+\n' read -d '' -r -a REPO_LIST_ARRAY < "${REPO_LIST_FILE}"
+    # Make all contents of the array lowercase
+    for i in "${!REPO_LIST_ARRAY[@]}"; do
+      REPO_LIST_ARRAY[$i]=$(echo "${REPO_LIST_ARRAY[$i]}" | tr '[:upper:]' '[:lower:]')
+    done
+  fi
+}
+################################################################################
+#### Function GetRepoStatsForURL ###############################################
+GetRepoStatsForURL() {
+  local repo_url=$1
+  local repo_path
+  repo_path=$(echo "${repo_url}" | sed -E 's/https?:\/\/[^\/]+\///')
+  local repo_data
+  repo_data=$(gh api "repos/${repo_path}")
+  local error_code=$?
+
+  if [ "${error_code}" -ne 0 ]; then
+    echo "Error getting repository information for ${repo_url}"
+    echo "${repo_data}"
+    exit 1
+  fi
+
+  PrintRepoStats "${repo_data}"
+}
+################################################################################
+#### Function PrintRepoStats ###################################################
+PrintRepoStats() {
+  local repo_data=$1
+  local repo_name
+  repo_name=$(echo "${repo_data}" | jq -r '.full_name')
+  local repo_size
+  repo_size=$(echo "${repo_data}" | jq -r '.size')
+  local forks
+  forks=$(echo "${repo_data}" | jq -r '.forks_count')
+  local stars
+  stars=$(echo "${repo_data}" | jq -r '.stargazers_count')
+  local watchers
+  watchers=$(echo "${repo_data}" | jq -r '.watchers_count')
+  local open_issues
+  open_issues=$(echo "${repo_data}" | jq -r '.open_issues_count')
+  local language
+  language=$(echo "${repo_data}" | jq -r '.language')
+  local created_at
+  created_at=$(echo "${repo_data}" | jq -r '.created_at')
+  local updated_at
+  updated_at=$(echo "${repo_data}" | jq -r '.updated_at')
+  local pushed_at
+  pushed_at=$(echo "${repo_data}" | jq -r '.pushed_at')
+
+  echo "Statistics for ${repo_name}:"
+  echo "  Size: ${repo_size} KB"
+  echo "  Forks: ${forks}"
+  echo "  Stars: ${stars}"
+  echo "  Watchers: ${watchers}"
+  echo "  Open Issues: ${open_issues}"
+  echo "  Language: ${language}"
+  echo "  Created At: ${created_at}"
+  echo "  Updated At: ${updated_at}"
+  echo "  Pushed At: ${pushed_at}"
+}
+################################################################################
+############################## MAIN ############################################
+################################################################################
+
+############################
+# Check for Web UI launch  #
+############################
+if [[ ${LAUNCH_UI} -eq 1 ]]; then
+  LaunchWebUI
+  exit 0
+fi
+
+if [[ -n "${REPO_URL}" ]]; then
+  GetRepoStatsForURL "${REPO_URL}"
+  exit 0
+fi
+
+##########
+# Header #
+##########
+Header
+
+#########################
+# Validate JQ installed #
+#########################
+ValidateJQ
+
+#################
+# Generate File #
+#################
+GenerateFiles
+
+######################
+# Validate the input #
+######################
+ValidateInput
+
+########################
+# Check the input file #
+########################
+if [[ -z ${INPUT_FILE_NAME} ]]; then
+  ######################
+  # Check Admin Rights #
+  ######################
+  CheckAdminRights "${ORG_NAME}"
+  ###################
+  # Get GitHub Data #
+  ###################
+  echo "------------------------------------------------------"
+  
+  #####################################
+  # Get total repo count for progress #
+  #####################################
+  TOTAL_REPO_COUNT=$(GetRepoCount "${ORG_NAME}")
+  echo "Found ${TOTAL_REPO_COUNT} repositories for org: ${ORG_NAME}" >&2
+  echo "------------------------------------------------------"
+  
+  #############################################
+  # Check the API limit remaining for GraphQL #
+  #############################################
+  CheckAPILimit
+  #############
+  # Get Repos #
+  #############
+  GetRepos
+else
+  ############
+  # Get Orgs #
+  ############
+  GetOrgsFromFile
+fi
+
+########################
+# Report all conflicts #
+########################
+ReportConflicts
+
+##########
+# Footer #
+##########
+Footer
+\n' read -d '' -r -a REPO_LIST_ARRAY < "${REPO_LIST_FILE}"
+    # Make all contents of the array lowercase
+    for i in "${!REPO_LIST_ARRAY[@]}"; do
+      REPO_LIST_ARRAY[$i]=$(echo "${REPO_LIST_ARRAY[$i]}" | tr '[:upper:]' '[:lower:]')
+    done
+  fi
+}
+################################################################################
+#### Function GetRepoStatsForURL ###############################################
+GetRepoStatsForURL() {
+  local repo_url=$1
+  local repo_path
+  repo_path=$(echo "${repo_url}" | sed -E 's/https?:\/\/[^\/]+\///')
+  local repo_data
+  repo_data=$(gh api "repos/${repo_path}")
+  local error_code=$?
+
+  if [ "${error_code}" -ne 0 ]; then
+    echo "Error getting repository information for ${repo_url}"
+    echo "${repo_data}"
+    exit 1
+  fi
+
+  PrintRepoStats "${repo_data}"
+}
+################################################################################
+#### Function PrintRepoStats ###################################################
+PrintRepoStats() {
+  local repo_data=$1
+  local repo_name
+  repo_name=$(echo "${repo_data}" | jq -r '.full_name')
+  local repo_size
+  repo_size=$(echo "${repo_data}" | jq -r '.size')
+  local forks
+  forks=$(echo "${repo_data}" | jq -r '.forks_count')
+  local stars
+  stars=$(echo "${repo_data}" | jq -r '.stargazers_count')
+  local watchers
+  watchers=$(echo "${repo_data}" | jq -r '.watchers_count')
+  local open_issues
+  open_issues=$(echo "${repo_data}" | jq -r '.open_issues_count')
+  local language
+  language=$(echo "${repo_data}" | jq -r '.language')
+  local created_at
+  created_at=$(echo "${repo_data}" | jq -r '.created_at')
+  local updated_at
+  updated_at=$(echo "${repo_data}" | jq -r '.updated_at')
+  local pushed_at
+  pushed_at=$(echo "${repo_data}" | jq -r '.pushed_at')
+
+  echo "Statistics for ${repo_name}:"
+  echo "  Size: ${repo_size} KB"
+  echo "  Forks: ${forks}"
+  echo "  Stars: ${stars}"
+  echo "  Watchers: ${watchers}"
+  echo "  Open Issues: ${open_issues}"
+  echo "  Language: ${language}"
+  echo "  Created At: ${created_at}"
+  echo "  Updated At: ${updated_at}"
+  echo "  Pushed At: ${pushed_at}"
+}
+################################################################################
+############################## MAIN ############################################
+################################################################################
+
+############################
+# Check for Web UI launch  #
+############################
+if [[ ${LAUNCH_UI} -eq 1 ]]; then
+  LaunchWebUI
+  exit 0
+fi
+
+if [[ -n "${REPO_URL}" ]]; then
+  GetRepoStatsForURL "${REPO_URL}"
   exit 0
 fi
 
