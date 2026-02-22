@@ -606,6 +606,25 @@ jobs:
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Configure Copilot CLI authentication
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+        run: |
+          # Write the Copilot token to the gh CLI auth config so the Copilot CLI
+          # can authenticate in the chroot environment where the one-shot-token
+          # mechanism may not properly expose the env var.
+          # XDG_CONFIG_HOME is set to /home/runner in the Execute step, so
+          # the Copilot CLI looks for gh auth at /home/runner/gh/hosts.yml.
+          mkdir -p /home/runner/gh
+          (
+            umask 0177
+            printf '%s\n%s\n%s\n%s\n' \
+              "github.com:" \
+              "    oauth_token: ${COPILOT_GITHUB_TOKEN}" \
+              '    user: ""' \
+              "    git_protocol: https" \
+              > /home/runner/gh/hosts.yml
+          )
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
